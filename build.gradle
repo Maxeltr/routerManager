@@ -1,0 +1,47 @@
+plugins {
+    id 'application'
+    id 'org.springframework.boot' version '2.2.5.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+    id 'java'
+}
+
+//plugins {
+//    id 'org.springframework.boot' version '2.2.5.RELEASE'
+//    id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+//}
+//
+//apply plugin: 'java'
+//apply plugin: 'jacoco'
+//apply plugin: 'application'
+
+mainClassName = 'ru.maxeltr.RouterManager.Main'
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+//    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter'
+    compile group: 'args4j', name: 'args4j', version: '2.32'
+//    compile group: 'org.jsoup', name: 'jsoup', version: '1.13.1'
+//    compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.12'
+
+    implementation 'org.apache.httpcomponents:httpclient:4.5.12'
+
+
+    implementation 'org.jsoup:jsoup:1.13.1'
+}
+
+
+description = 'Manage router settings'
+group = 'ru.maxeltr'
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'ru.maxeltr.RouterManager.Main'
+        )
+    }
+}

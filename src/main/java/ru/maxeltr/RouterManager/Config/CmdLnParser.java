@@ -31,6 +31,7 @@ import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.StringArrayOptionHandler;
+import ru.maxeltr.RouterManager.Service.CryptService;
 
 /**
  *
@@ -39,6 +40,15 @@ import org.kohsuke.args4j.spi.StringArrayOptionHandler;
 public class CmdLnParser {
 
     private static final Logger logger = Logger.getLogger(CmdLineParser.class.getName());
+
+    @Option(name = "-pin", usage = "enter pin to decrypt options")
+    private String pin = "";
+
+    @Option(name = "-password", usage = "enter password to login to router")
+    private String password = "";
+
+    @Option(name = "-login", usage = "enter login to login to router")
+    private String login = "";
 
     @Option(name = "-add", handler = StringArrayOptionHandler.class, usage = "add MAC and its alias (-add MAC alias)")
     private List<String> macToAdd = new ArrayList<String>();
@@ -56,9 +66,12 @@ public class CmdLnParser {
 
     Config config;
 
-    CmdLnParser(Config config) {
+    CryptService cryptService;
+
+    CmdLnParser(Config config, CryptService cryptService) {
         this.parser = new CmdLineParser(this);
         this.config = config;
+        this.cryptService = cryptService;
     }
 
     public void parse(String[] args) {
@@ -72,11 +85,13 @@ public class CmdLnParser {
 
         if (this.macToAdd.size() > 0) {
             this.addMac(this.macToAdd);
+            logger.log(Level.INFO, String.format("MAC was saved in a config file.%n"));
             this.config.saveConfigToFile();
         }
 
         if (this.macToDel.size() > 0) {
             this.delMac(this.macToDel);
+            logger.log(Level.INFO, String.format("MAC was removed in a config file.%n"));
             this.config.saveConfigToFile();
         }
 
@@ -86,6 +101,20 @@ public class CmdLnParser {
 
         if (this.turnOff.size() > 0) {
             this.config.OFF_LIST = this.turnOff;
+        }
+
+        this.cryptService.setPin(this.pin.toCharArray());
+
+        if (!this.password.isEmpty()) {
+            this.config.setProperty("Password", this.cryptService.encrypt(this.password.getBytes(), this.pin.toCharArray()));
+            logger.log(Level.INFO, String.format("Password was saved in a config file.%n"));
+            this.config.saveConfigToFile();
+        }
+
+        if (!this.login.isEmpty()) {
+            this.config.setProperty("Login", this.cryptService.encrypt(this.login.getBytes(), this.pin.toCharArray()));
+            logger.log(Level.INFO, String.format("Login was saved in a config file.%n"));
+            this.config.saveConfigToFile();
         }
     }
 

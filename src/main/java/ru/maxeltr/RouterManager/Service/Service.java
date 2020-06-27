@@ -42,19 +42,25 @@ public class Service {
 
     HttpClientContext context;
 
+    CryptService cryptService;
+
     private static final Logger logger = Logger.getLogger(Service.class.getName());
 
-    public Service(Config config) {
+    public Service(Config config, CryptService cryptService) {
         this.config = config;
-
+        this.cryptService = cryptService;
         this.context = HttpClientContext.create();
+    }
 
+    private void createClient() {
         CredentialsProvider credsProvider = new BasicCredentialsProvider();
         credsProvider.setCredentials(
                 AuthScope.ANY,
                 new UsernamePasswordCredentials(
-                        this.config.getProperty("Login", "admin"),
-                        this.config.getProperty("Password", "admin")
+                        new String(cryptService.decrypt(this.config.getProperty("Login", ""))),
+                        new String(cryptService.decrypt(this.config.getProperty("Password", "")))
+//                        this.config.getProperty("Login", "admin"),
+//                        this.config.getProperty("Password", "admin")
                 )
         );
         this.context.setCredentialsProvider(credsProvider);
@@ -67,11 +73,17 @@ public class Service {
         this.client = HttpClientBuilder.create().build();
     }
 
-    public void turnOff() {
+    public int  turnOff() {
+        int amount = 0;
+
+        if (this.client == null) {
+            this.createClient();
+        }
+
         if (this.config.OFF_LIST.isEmpty()) {
             logger.log(Level.INFO, String.format("List to turn off is empty.%n"));
 
-            return;
+            return amount;
         }
 
         for (String macAlias : this.config.OFF_LIST) {
@@ -80,16 +92,20 @@ public class Service {
                 continue;
             }
 
-            this.delMac(mac);
+            if (this.delMac(mac)) {
+                amount++;
+            }
         }
+
+        return amount;
     }
-    
-    private void delMac(String mac) {
+
+    private boolean delMac(String mac) {
         Document doc = this.getPage("http://192.168.1.1/Advanced_ACL_Content.asp#ACLList");
         if (doc == null) {
             logger.log(Level.WARNING, String.format("Cannot get ACLList page.%n"));
 
-            return;
+            return false;
         }
 
         FormElement form = (FormElement) doc.select("form[name=form]").first();
@@ -102,13 +118,13 @@ public class Service {
                 break;
             }
         }
-        
+
         if (macNumberInList == -1) {
             logger.log(Level.WARNING, String.format("MAC %s is absent in list.%n", mac));
-            
-            return;
+
+            return false;
         }
-        
+
         String AddACLListUrl = "http://192.168.1.1/apply.cgi";
         URIBuilder builder = null;
         try {
@@ -116,7 +132,7 @@ public class Service {
         } catch (URISyntaxException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, String.format("Cannot create UriBuilder for uri: %s.%n", AddACLListUrl), ex);
 
-            return;
+            return false;
         }
         builder.setParameter("current_page", "Advanced_ACL_Content.asp")
                 .setParameter("next_page", "Advanced_WSecurity_Content.asp")
@@ -139,9 +155,9 @@ public class Service {
         } catch (URISyntaxException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, String.format("Cannot create HttpGet.%n"), ex);
 
-            return;
+            return false;
         }
-        
+
 //        query.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9");
 //        query.addHeader("Accept-Encoding", "gzip, deflate, sdch");
 //        query.addHeader("Accept-Language", "ru,en;q=0.9");
@@ -157,7 +173,7 @@ public class Service {
         } catch (IOException ex) {
             logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
 
-            return;
+            return false;
         }
 
         int statusCode = response.getStatusLine().getStatusCode();
@@ -170,15 +186,23 @@ public class Service {
         } catch (IOException | UnsupportedOperationException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         logger.log(Level.INFO, String.format("MAC %s was deleted.%n", mac));
+
+        return true;
     }
-    
-    public void turnOn() {
+
+    public int turnOn() {
+        int amount = 0;
+
+        if (this.client == null) {
+            this.createClient();
+        }
+
         if (this.config.ON_LIST.isEmpty()) {
             logger.log(Level.INFO, String.format("List to turn on is empty.%n"));
 
-            return;
+            return amount;
         }
 
         for (String macAlias : this.config.ON_LIST) {
@@ -187,10 +211,14 @@ public class Service {
                 continue;
             }
 
-            this.addMac(mac);
+            if (this.addMac(mac)) {
+                amount++;
+            }
         }
+
+        return amount;
     }
-    
+
     public void restart() {
         String AddACLListUrl = "http://192.168.1.1/apply.cgi";
         URIBuilder builder = null;
@@ -237,7 +265,7 @@ public class Service {
         } catch (IOException | UnsupportedOperationException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         logger.log(Level.INFO, String.format("Restart query was sent.%n"));
     }
 
@@ -304,16 +332,16 @@ public class Service {
         } catch (IOException | UnsupportedOperationException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         logger.log(Level.INFO, String.format("Finish query was sent.%n"));
     }
 
-    private void addMac(String mac) {
+    private boolean addMac(String mac) {
         Document doc = this.getPage("http://192.168.1.1/Advanced_ACL_Content.asp#ACLList");
         if (doc == null) {
             logger.log(Level.INFO, String.format("Cannot get ACLList page.%n"));
 
-            return;
+            return false;
         }
 
         FormElement form = (FormElement) doc.select("form[name=form]").first();
@@ -322,11 +350,11 @@ public class Service {
         for (int i = 0; i < selectOptions.size(); i++) {
             if (selectOptions.get(i).text().equalsIgnoreCase(mac)) {
                 logger.log(Level.WARNING, String.format("MAC %s is in list already.%n", mac));
-                
-                return;
+
+                return false;
             }
         }
-        
+
         String AddACLListUrl = "http://192.168.1.1/apply.cgi";
         URIBuilder builder = null;
         try {
@@ -334,7 +362,7 @@ public class Service {
         } catch (URISyntaxException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, String.format("Cannot create UriBuilder for uri: %s.%n", AddACLListUrl), ex);
 
-            return;
+            return false;
         }
         builder.setParameter("current_page", "Advanced_ACL_Content.asp")
                 .setParameter("next_page", "Advanced_WSecurity_Content.asp")
@@ -356,7 +384,7 @@ public class Service {
         } catch (URISyntaxException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, String.format("Cannot create HttpGet.%n"), ex);
 
-            return;
+            return false;
         }
 
 //        query.addHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9");
@@ -374,7 +402,7 @@ public class Service {
         } catch (IOException ex) {
             logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
 
-            return;
+            return false;
         }
 
         int statusCode = response.getStatusLine().getStatusCode();
@@ -387,8 +415,10 @@ public class Service {
         } catch (IOException | UnsupportedOperationException ex) {
             Logger.getLogger(Service.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
+
         logger.log(Level.INFO, String.format("MAC %s was added.%n", mac));
+
+        return true;
     }
 
     private Document getPage(String url) {

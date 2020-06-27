@@ -41,6 +41,10 @@ import java.util.logging.Logger;
  */
 public class Config {
 
+    public static final byte[] SALT = {1, 2, 3, 4, 5, 6, 7, 8};
+    public static final int ITERATION_COUNT = 4000;
+    public static final int KEY_LENGTH = 128;
+    
     public List<String> ON_LIST = new ArrayList<>();
     public List<String> OFF_LIST = new ArrayList<>();
 

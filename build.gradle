@@ -37,6 +37,7 @@ dependencies {
 
 description = 'Manage router settings'
 group = 'ru.maxeltr'
+//version = '0.0.2'
 
 jar {
     manifest {

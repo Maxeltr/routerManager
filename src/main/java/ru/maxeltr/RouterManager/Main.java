@@ -41,13 +41,14 @@ public class Main {
 
         Service service = (Service) applicationContext.getBean("service");
 
-        service.turnOn();
-        service.turnOff();
+        int amount = service.turnOn();
+        amount += service.turnOff();
 
-                
 //        service.finish();
-        
-        service.restart();
+
+        if (amount > 0) {
+            service.restart();
+        }
     }
 
 }

@@ -24,9 +24,12 @@
 package ru.maxeltr.RouterManager.Config;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.util.logging.LogManager;
+import javax.crypto.NoSuchPaddingException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import ru.maxeltr.RouterManager.Service.CryptService;
 import ru.maxeltr.RouterManager.Service.Service;
 
 
@@ -49,8 +52,13 @@ public class AppAnnotationConfig {
     }
 
     @Bean
-    public Service service(Config config) {
-        return new Service(config);
+    public CmdLnParser cmdLnParser(Config config, CryptService cryptService) {
+        return new CmdLnParser(config, cryptService);
+    }
+
+    @Bean
+    public Service service(Config config, CryptService cryptService) {
+        return new Service(config, cryptService);
     }
 
     @Bean
@@ -59,8 +67,10 @@ public class AppAnnotationConfig {
     }
 
     @Bean
-    public CmdLnParser cmdLnParser(Config config) {
-        return new CmdLnParser(config);
+    public CryptService cryptService() throws NoSuchAlgorithmException, NoSuchPaddingException {
+        return new CryptService();
     }
+
+
 
 }

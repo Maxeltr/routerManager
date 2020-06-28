@@ -127,6 +127,10 @@ public class CryptService {
     }
 
     public char[] getPin() {
+        if (this.pin == null) {
+            return new char[0];
+        }
+
         return this.pin;
     }
 

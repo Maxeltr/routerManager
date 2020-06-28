@@ -19,6 +19,7 @@ import org.apache.http.client.AuthCache;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.auth.BasicScheme;
@@ -26,11 +27,8 @@ import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Attributes;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.nodes.FormElement;
-import org.jsoup.parser.Tag;
 import org.jsoup.select.Elements;
 import ru.maxeltr.RouterManager.Config.Config;
 
@@ -75,10 +73,6 @@ public class Service {
 
     public int  turnOff() {
         int amount = 0;
-
-        if (this.client == null) {
-            this.createClient();
-        }
 
         if (this.config.OFF_LIST.isEmpty()) {
             logger.log(Level.INFO, String.format("List to turn off is empty.%n"));
@@ -167,12 +161,9 @@ public class Service {
 //        query.addHeader("Referer", "http://192.168.1.1/Advanced_ACL_Content.asp");
 //        query.addHeader("Upgrade-Insecure-Requests", "1");
 //        query.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 YaBrowser/20.6.0.905 Yowser/2.5 Safari/537.36");
-        HttpResponse response;
-        try {
-            response = this.client.execute(query, this.context);
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
 
+        HttpResponse response = this.executeQuery(query);
+        if (response == null) {
             return false;
         }
 
@@ -192,12 +183,25 @@ public class Service {
         return true;
     }
 
-    public int turnOn() {
-        int amount = 0;
-
+    private HttpResponse executeQuery(HttpUriRequest query) {
         if (this.client == null) {
             this.createClient();
         }
+
+        HttpResponse response;
+        try {
+            response = this.client.execute(query, this.context);
+        } catch (IOException ex) {
+            logger.log(Level.SEVERE, String.format("Cannot execute query to %s.%n", query.getURI().getPath()), ex);
+
+            return null;
+        }
+
+        return response;
+    }
+
+    public int turnOn() {
+        int amount = 0;
 
         if (this.config.ON_LIST.isEmpty()) {
             logger.log(Level.INFO, String.format("List to turn on is empty.%n"));
@@ -246,12 +250,8 @@ public class Service {
             return;
         }
 
-        HttpResponse response;
-        try {
-            response = this.client.execute(query, this.context);
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
-
+        HttpResponse response = this.executeQuery(query);
+        if (response == null) {
             return;
         }
 
@@ -313,12 +313,8 @@ public class Service {
             return;
         }
 
-        HttpResponse response;
-        try {
-            response = this.client.execute(query, this.context);
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
-
+        HttpResponse response = this.executeQuery(query);
+        if (response == null) {
             return;
         }
 
@@ -396,12 +392,9 @@ public class Service {
 //        query.addHeader("Referer", "http://192.168.1.1/Advanced_ACL_Content.asp");
 //        query.addHeader("Upgrade-Insecure-Requests", "1");
 //        query.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 YaBrowser/20.6.0.905 Yowser/2.5 Safari/537.36");
-        HttpResponse response;
-        try {
-            response = this.client.execute(query, this.context);
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", query.getURI().getPath()), ex);
 
+        HttpResponse response = this.executeQuery(query);
+        if (response == null) {
             return false;
         }
 
@@ -422,12 +415,8 @@ public class Service {
     }
 
     private Document getPage(String url) {
-        HttpResponse response;
-        try {
-            response = this.client.execute(new HttpGet(url), this.context);
-        } catch (IOException ex) {
-            logger.log(Level.SEVERE, String.format("Cannot execute GET request to %s.%n", url), ex);
-
+        HttpResponse response = this.executeQuery(new HttpGet(url));
+        if (response == null) {
             return null;
         }
 
@@ -461,98 +450,5 @@ public class Service {
         Document doc = Jsoup.parse(String.valueOf(tmp));
 
         return doc;
-    }
-
-    public boolean authenticate() throws IOException {
-
-        HttpResponse response = this.client.execute(
-                new HttpGet("http://192.168.1.1/Advanced_ACL_Content.asp#ACLList"), this.context);
-
-        int statusCode = response.getStatusLine().getStatusCode();
-
-        System.out.println("HttpStatus " + statusCode);
-
-        StringBuffer tmp = new StringBuffer();
-        try {
-            String line;
-            BufferedReader in = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
-            while ((line = in.readLine()) != null) {
-                String decoded = new String(line.getBytes(), "UTF-8");
-                tmp.append(" ").append(decoded);
-            }
-        } catch (IOException ex) {
-
-        }
-
-        Document doc = Jsoup.parse(String.valueOf(tmp));
-
-        FormElement form = (FormElement) doc.select("form[name=form]").first();
-
-        Elements selectOptions = form.select("select[name=ACLList_s]>option");
-
-        Element el = createSelectElement();
-//        selectOptions = removeOptionValue(selectOptions, "60D819847AFB");
-//        Element sel = insertOptionValues(el, selectOptions);
-//        sel = addOptionValue(sel, "AADDAADDAADD");
-
-        Element select = form.selectFirst("select[name=ACLList_s]");
-//        select.replaceWith(sel);
-
-//        Element par = new Element("div");
-//        par.prependChild(el);
-//        Logger.getLogger(Service.class.getName()).log(Level.INFO, sel.html());
-        return true;
-    }
-
-    private Element createSelectElement() {
-        Attributes attributes = new Attributes();
-        attributes.put("size", "8");
-        attributes.put("name", "ACLList_s");
-        attributes.put("multiple", "true");
-        attributes.put("style", "font-family: 'fixedsys'; font-size: '8pt'");
-        Element el = new Element(Tag.valueOf("select"), "", attributes);
-
-        return el;
-    }
-
-    private void insertOptionValues(Element select, Elements selectOptions) {
-        if (selectOptions.isEmpty()) {
-
-            return;
-        }
-
-        select.children().remove();
-        String nbsp = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-        int i = 0;
-        for (Element option : selectOptions) {
-            select.append("<option value=" + i + ">" + option.text() + nbsp + "</option");
-            i++;
-        }
-    }
-
-    private void addOptionValue(Element select, String value) {
-        if (value.isEmpty()) {
-
-            return;
-        }
-
-        String nbsp = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-        int i = select.childrenSize();
-        select.append("<option value=" + i + ">" + value + nbsp + "</option");
-    }
-
-    private void removeOptionValue(Elements selectOptions, String valueToDelete) {
-        if (selectOptions.isEmpty() || valueToDelete.isEmpty()) {
-
-            return;
-        }
-
-        Element optionToDel = null;
-        for (Element option : selectOptions) {
-            if (option.text().equalsIgnoreCase(valueToDelete)) {
-                optionToDel = option;
-            }
-        }
-        selectOptions.remove(optionToDel);
     }
 }
